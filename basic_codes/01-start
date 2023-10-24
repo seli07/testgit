@@ -99,4 +99,6 @@ for epoch in range(num_epochs):
         if not batch_idx % 50:
             print(f'Epoch: {epoch+1:03d}/{num_epochs:03d} | Batch {batch_idx:03d}/{len(train_loader):03d} | Cost: {cost:.4f}')
 
-    print('Epoch: %03d/%03d training accuracy: %.2f%%' % (')
+    print('Epoch: %03d/%03d training accuracy: %.2f%%' % (epoch+1,num_epochs,compute_accuracy(model,train_loader)))
+    print('Time elapsed: %.2f min' % ((time.time() - start_time)/60))
+print('Total Training Time: %.2f min' % ((time.time() - start_time)/60))
