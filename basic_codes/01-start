@@ -1,0 +1,102 @@
+import time
+import os
+import numpy as np
+from torchvision import datasets
+from torchvision import transforms
+from torch.utils.data import DataLoader
+from torch.nn.functional as F
+import torch
+
+if torch.cuda.is_available():
+    torch.backends.cudnn.deterministic = True
+
+##########################settings##########################
+
+#device
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+#hyperparameters
+random_seed = 1
+learning_rate = 0.1
+num_epochs = 10
+batch_size = 128
+dropout_prob = 0.5
+
+#architecture
+num_features = 784
+num_classes = 10
+num_hidden_1 = 128
+num_hidden_2 = 256
+
+##########################MNIST dataset##########################
+
+train_dataset = datasets.MNIST(root='data',train=True,transform=transforms.ToTensor(),download=True)
+test_dataset = datasets.MNIST(root='data',train=False,transform=transforms.ToTensor())
+
+train_loader = DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True)
+test_loader = DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=False)
+
+
+##########################model##########################
+
+class perceptron(torch.nn.module):
+    def _init_(self,num_features,num_classes):
+        super(perceptron,self)._init_()
+        self.linear_1 = torch.nn.Linear(num_features,num_hidden_1)
+        self.linear_2 = torch.nn.Linear(num_hidden_1,num_hidden_2)
+        self.linear_3 = torch.nn.Linear(num_hidden_2,num_classes)
+        self.dropout = torch.nn.Dropout(p=dropout_p)
+
+    def forward(self,x):
+        out = self.linear_1(x)
+        out = F.relu(out)
+        out = self.dropout(out, p=dropout_prob, training=self.training)
+
+        out = self.linear_2(out)
+        out = F.relu(out)
+        out = self.dropout(out, p=dropout_prob, training=self.training)
+
+        logits = self.linear_3(out)
+        probas = F.log_softmax(logits,dim=1)
+        return logits,probas
+    
+torch.manual_seed(random_seed)
+model = perceptron(num_features=num_features,num_classes=num_classes)
+model = model.to(device)
+optimizer = torch.optim.SGD(model.parameters(),lr=learning_rate)
+
+
+####compute accuracy####    
+
+def compute_accuracy(net, data_loader):
+    net.eval()
+    correct_pred, num_examples = 0, 0
+    with torch.no_grad():
+        for features, targets in data_loader:
+            features = features.view(-1, 28*28).to(device)
+            targets = targets.to(device)
+            logits, probas = net(features)
+            _, predicted_labels = torch.max(probas, 1)
+            num_examples += targets.size(0)
+            correct_pred += (predicted_labels == targets).sum()
+        return correct_pred.float()/num_examples * 100
+    
+start_time = time.time()
+
+for epoch in range(num_epochs):
+    model.train()
+    for batch_idx, (features,targets) in enumerate(train_loader):
+        features = features.view(-1,28*28).to(device)
+
+        targets = targets.to(device)
+
+        logits,probas = model(features)
+        cost = F.cross_entropy(logits,targets)
+        optimizer.zero_grad()
+        cost.backward()
+        optimizer.step()
+
+        if not batch_idx % 50:
+            print(f'Epoch: {epoch+1:03d}/{num_epochs:03d} | Batch {batch_idx:03d}/{len(train_loader):03d} | Cost: {cost:.4f}')
+
+    print('Epoch: %03d/%03d training accuracy: %.2f%%' % (')
